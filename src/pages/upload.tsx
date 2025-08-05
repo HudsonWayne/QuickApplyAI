@@ -5,6 +5,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { FaArrowLeft, FaUpload } from "react-icons/fa";
 
+
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
 
