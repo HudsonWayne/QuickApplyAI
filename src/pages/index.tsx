@@ -32,10 +32,10 @@ export default function Home() {
           {/* Image */}
           <div className="flex justify-center">
             <Image
-              src="/Luca.jpeg"
+              src="/imagee.jpeg"
               alt="Resume upload illustration"
               width={500}
-              height={500}
+              height={300}
               className="w-full max-w-md hover:scale-105 transition-transform duration-300"
             />
           </div>
