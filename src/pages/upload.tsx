@@ -5,9 +5,9 @@ import Head from "next/head";
 import Link from "next/link";
 import { FaArrowLeft, FaUpload } from "react-icons/fa";
 
-
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<"idle" | "uploaded" | "searching">("idle");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -21,8 +21,12 @@ export default function UploadPage() {
       return;
     }
 
-    // Later: send this to backend
-    alert(`🎉 Resume uploaded: ${file.name}`);
+    // Simulate upload and start job search
+    setStatus("uploaded");
+
+    setTimeout(() => {
+      setStatus("searching");
+    }, 2000);
   };
 
   return (
@@ -75,6 +79,21 @@ export default function UploadPage() {
             <FaArrowLeft /> Back to Home
           </Link>
         </div>
+
+        {/* Status card floating at the bottom-right */}
+        {status !== "idle" && (
+          <div
+            className="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-4 rounded-xl shadow-lg transition-all duration-500"
+            title={
+              status === "uploaded"
+                ? "Resume uploaded successfully"
+                : "Searching for jobs matching your resume..."
+            }
+          >
+            {status === "uploaded" && "✅ Resume uploaded!"}
+            {status === "searching" && "🔍 Looking for jobs..."}
+          </div>
+        )}
       </main>
     </>
   );
