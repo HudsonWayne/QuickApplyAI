@@ -1,85 +1,44 @@
-import { useState } from 'react';
+"use client";
+
+import Head from "next/head";
 
 export default function Home() {
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [jobs, setJobs] = useState<any[]>([]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file) return alert('Please select a resume file');
-    setUploading(true);
-    setMessage('');
-    setJobs([]);
-
-    const formData = new FormData();
-    formData.append('resume', file);
-
-    try {
-      const response = await fetch('http://localhost:8000/upload-resume', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-      setMessage(data.message || 'Upload complete');
-      setJobs(data.jobs || []);
-    } catch (error) {
-      console.error('Error:', error);
-      setMessage('Upload failed');
-    } finally {
-      setUploading(false);
-    }
-  };
-
   return (
-    <main style={{ padding: '2rem', maxWidth: '600px', margin: 'auto' }}>
-      <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>QuickApply 📝</h1>
+    <>
+      <Head>
+        <title>QuickApply</title>
+        <meta name="description" content="Fast-track your job applications with QuickApply" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
 
-      <input
-        type="file"
-        accept=".pdf,.doc,.docx"
-        onChange={handleFileChange}
-        style={{ margin: '1rem 0' }}
-      />
+      <main className="min-h-screen bg-gradient-to-r from-[#fdfbfb] to-[#ebedee] flex flex-col items-center justify-center px-6 py-12">
+        <div className="text-center space-y-6 max-w-2xl">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-800 leading-tight">
+            Welcome to <span className="text-green-600">QuickApply</span>
+          </h1>
 
-      <button
-        onClick={handleUpload}
-        disabled={uploading}
-        style={{
-          backgroundColor: '#2563EB',
-          color: 'white',
-          padding: '0.5rem 1rem',
-          borderRadius: '0.5rem',
-        }}
-      >
-        {uploading ? 'Uploading...' : 'Upload Resume & Find Jobs'}
-      </button>
+          <p className="text-lg sm:text-xl text-gray-600">
+            Your one-stop solution to apply for jobs faster and smarter. Streamline your job hunt and never miss an opportunity again.
+          </p>
 
-      {message && <p style={{ marginTop: '1rem' }}>{message}</p>}
-
-      {jobs.length > 0 && (
-        <div style={{ marginTop: '2rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: '600' }}>Matching Jobs</h2>
-          <ul>
-            {jobs.map((job, index) => (
-              <li key={index} style={{ border: '1px solid #ccc', padding: '1rem', marginBottom: '1rem' }}>
-                <p><strong>{job.title}</strong></p>
-                <p>{job.company}</p>
-                <a href={job.url} target="_blank" rel="noopener noreferrer" style={{ color: 'blue' }}>
-                  View Job
-                </a>
-              </li>
-            ))}
-          </ul>
+          <div className="flex justify-center gap-4 mt-6">
+            <button className="bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition duration-300">
+              Get Started
+            </button>
+            <button className="border border-green-600 text-green-600 px-6 py-3 rounded-xl hover:bg-green-100 transition duration-300">
+              Learn More
+            </button>
+          </div>
         </div>
-      )}
-    </main>
+
+        <div className="mt-12">
+          <img
+            src="/quick-apply-illustration.svg"
+            alt="Job application illustration"
+            className="w-full max-w-lg"
+          />
+        </div>
+      </main>
+    </>
   );
 }
