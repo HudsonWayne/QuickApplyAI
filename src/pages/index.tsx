@@ -17,7 +17,7 @@ export default function Home() {
           {/* Text Content */}
           <div className="text-center md:text-left space-y-6">
             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight text-gray-900">
-              Welcome to <span className="text-green-600">QuickApply</span>
+              Welcome to <span className="text-green-600">QuickApplyAi</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-700">
               Upload your resume once. We will find matching jobs and apply for you automatically.
