@@ -1,26 +1,26 @@
-import { MongoClient } from "mongodb";
+// src/lib/mongodb.ts
 
-const uri = process.env.MONGODB_URI!;
-const options = {};
+import { MongoClient, Db } from "mongodb";
 
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
+const uri = process.env.MONGODB_URI as string;
 
-if (!process.env.MONGODB_URI) {
-  throw new Error("Please add your Mongo URI to .env.local");
+if (!uri) {
+  throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
 }
 
-if (process.env.NODE_ENV === "development") {
-  // In development, use a global variable to preserve connection between hot reloads
-  if (!(global as any)._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    (global as any)._mongoClientPromise = client.connect();
+let cachedClient: MongoClient | null = null;
+let cachedDb: Db | null = null;
+
+export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
+  if (cachedClient && cachedDb) {
+    return { client: cachedClient, db: cachedDb };
   }
-  clientPromise = (global as any)._mongoClientPromise;
-} else {
-  // In production, just create a new client
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
-}
 
-export default clientPromise;
+  const client = await MongoClient.connect(uri);
+  const db = client.db();
+
+  cachedClient = client;
+  cachedDb = db;
+
+  return { client, db };
+}

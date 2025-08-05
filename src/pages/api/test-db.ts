@@ -1,13 +1,12 @@
 // src/pages/api/test-db.ts
 
 import { NextApiRequest, NextApiResponse } from "next";
-import { connectToDatabase } from "@/utils/mongodb";
+import { connectToDatabase } from "@/lib/mongodb";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const { db } = await connectToDatabase();
-    
-    // List all collections to test connection
+
     const collections = await db.listCollections().toArray();
 
     res.status(200).json({
