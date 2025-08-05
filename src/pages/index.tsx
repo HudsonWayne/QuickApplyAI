@@ -1,44 +1,54 @@
 "use client";
 
 import Head from "next/head";
+import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
     <>
       <Head>
-        <title>QuickApply</title>
-        <meta name="description" content="Fast-track your job applications with QuickApply" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>QuickApply – Smart Job Application System</title>
+        <meta name="description" content="Upload your resume and let QuickApply do the job hunt for you." />
       </Head>
 
-      <main className="min-h-screen bg-gradient-to-r from-[#fdfbfb] to-[#ebedee] flex flex-col items-center justify-center px-6 py-12">
-        <div className="text-center space-y-6 max-w-2xl">
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-800 leading-tight">
-            Welcome to <span className="text-green-600">QuickApply</span>
-          </h1>
+      <main className="min-h-screen bg-gradient-to-br from-white via-green-50 to-green-100 flex flex-col items-center justify-center px-6">
+        <div className="max-w-5xl w-full grid md:grid-cols-2 gap-12 items-center mt-12">
+          {/* Text Content */}
+          <div className="text-center md:text-left space-y-6">
+            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight text-gray-900">
+              Welcome to <span className="text-green-600">QuickApply</span>
+            </h1>
+            <p className="text-lg md:text-xl text-gray-700">
+              Upload your resume once. We will find matching jobs and apply for you automatically.
+            </p>
+            <Link href="/upload">
+              <button className="mt-4 px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow-md transition-all duration-300 ease-in-out">
+                🚀 Get Started
+              </button>
+            </Link>
+          </div>
 
-          <p className="text-lg sm:text-xl text-gray-600">
-            Your one-stop solution to apply for jobs faster and smarter. Streamline your job hunt and never miss an opportunity again.
-          </p>
-
-          <div className="flex justify-center gap-4 mt-6">
-            <button className="bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition duration-300">
-              Get Started
-            </button>
-            <button className="border border-green-600 text-green-600 px-6 py-3 rounded-xl hover:bg-green-100 transition duration-300">
-              Learn More
-            </button>
+          {/* Image */}
+          <div className="flex justify-center">
+            <Image
+              src="/Luca.jpeg"
+              alt="Resume upload illustration"
+              width={500}
+              height={500}
+              className="w-full max-w-md hover:scale-105 transition-transform duration-300"
+            />
           </div>
         </div>
 
-        <div className="mt-12">
-          <img
-            src="/quick-apply-illustration.svg"
-            alt="Job application illustration"
-            className="w-full max-w-lg"
-          />
+        {/* Footer or Features */}
+        <div className="mt-20 text-center space-y-3 text-gray-600 text-sm">
+          <p>🎯 Smart Job Matching</p>
+          <p>🔒 100% Privacy – Your data is secure</p>
+          <p>📈 Save hours applying manually</p>
         </div>
       </main>
     </>
   );
 }
+
