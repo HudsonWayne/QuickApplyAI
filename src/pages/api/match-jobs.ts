@@ -8,6 +8,7 @@ type Job = {
   company: string;
   description: string;
   link: string;
+  score?: number;
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -31,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const scrapedJobs: Job[] = [];
 
-    // Scrape VacancyMail
+    // VacancyMail
     try {
       const { data } = await axios.get('https://vacancymail.co.zw/jobs/');
       const $ = cheerio.load(data);
@@ -47,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.warn('VacancyMail scraping failed:', err);
     }
 
-    // Scrape RemoteOK
+    // RemoteOK
     try {
       const { data } = await axios.get('https://remoteok.com/');
       const $$ = cheerio.load(data);
@@ -63,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.warn('RemoteOK scraping failed:', err);
     }
 
-    // Scrape Remotive (public HTML)
+    // Remotive
     try {
       const { data } = await axios.get('https://remotive.com/remote-jobs/');
       const $$$ = cheerio.load(data);
@@ -79,23 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.warn('Remotive scraping failed:', err);
     }
 
-
-    const matchedCollection = db.collection("matchedJobs");
-
-await matchedCollection.insertOne({
-  resumeId: latestResume._id,
-  matchedAt: new Date(),
-  jobs: matched,
-});
-
-
-
-
-
-
-
-
-    // Score matches
+    // Score & Filter
     const matched = scrapedJobs
       .map(job => {
         const text = `${job.title} ${job.description}`.toLowerCase();
@@ -105,6 +90,14 @@ await matchedCollection.insertOne({
       .filter(job => job.score >= 3)
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
+
+    // ✅ Insert into matchedJobs collection
+    const matchedCollection = db.collection("matchedJobs");
+    await matchedCollection.insertOne({
+      resumeId: latestResume._id,
+      matchedAt: new Date(),
+      jobs: matched,
+    });
 
     res.status(200).json({
       resumeTextPreview: resumeText.slice(0, 300),
