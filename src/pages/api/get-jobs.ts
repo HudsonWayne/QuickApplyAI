@@ -1,13 +1,9 @@
-// src/pages/api/get-jobs.ts
-
 import type { NextApiRequest, NextApiResponse } from 'next';
-import clientPromise from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { connectToDatabase } from '@/lib/mongodb';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const client = await clientPromise;
-    const db = client.db('QuickApplyAi');
+    const { db } = await connectToDatabase();
     const matchedCollection = db.collection('matchedJobs');
 
     // Get latest matched jobs document
