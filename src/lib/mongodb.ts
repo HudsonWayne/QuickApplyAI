@@ -1,10 +1,11 @@
 // src/lib/mongodb.ts
-import { MongoClient, Db } from "mongodb";
+
+import { MongoClient, Db } from 'mongodb';
 
 const uri = process.env.MONGODB_URI as string;
 
 if (!uri) {
-  throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
+  throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
 }
 
 let cachedClient: MongoClient | null = null;
@@ -16,7 +17,7 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
   }
 
   const client = await MongoClient.connect(uri);
-  const db = client.db('QuickApplyAi');
+  const db = client.db();
 
   cachedClient = client;
   cachedDb = db;
