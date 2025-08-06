@@ -79,6 +79,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.warn('Remotive scraping failed:', err);
     }
 
+
+    const matchedCollection = db.collection("matchedJobs");
+
+await matchedCollection.insertOne({
+  resumeId: latestResume._id,
+  matchedAt: new Date(),
+  jobs: matched,
+});
+
+
+
+
+
+
+
+
     // Score matches
     const matched = scrapedJobs
       .map(job => {
