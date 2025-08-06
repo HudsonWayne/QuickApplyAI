@@ -1,48 +1,25 @@
-// src/pages/api/match-jobs.ts
+// src/lib/mongodb.ts
+import { MongoClient, Db } from "mongodb";
 
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { connectToDatabase } from '@/lib/mongodb';
-import axios from 'axios';
-import * as cheerio from 'cheerio';
+const uri = process.env.MONGODB_URI as string;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+if (!uri) {
+  throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
+}
+
+let cachedClient: MongoClient | null = null;
+let cachedDb: Db | null = null;
+
+export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
+  if (cachedClient && cachedDb) {
+    return { client: cachedClient, db: cachedDb };
   }
 
-  try {
-    const { cvText } = req.body;
-    if (!cvText) {
-      return res.status(400).json({ message: 'Missing cvText in request body' });
-    }
+  const client = await MongoClient.connect(uri);
+  const db = client.db('QuickApplyAi');
 
-    // Scrape jobs
-    const { data } = await axios.get('https://vacancymail.co.zw/jobs/');
-    const $ = cheerio.load(data);
-    const jobListings: { title: string; company: string; link: string }[] = [];
+  cachedClient = client;
+  cachedDb = db;
 
-    $('.job-listing').each((_, el) => {
-      const title = $(el).find('.job-title a').text().trim();
-      const company = $(el).find('.job-company').text().trim();
-      const link = 'https://vacancymail.co.zw' + $(el).find('.job-title a').attr('href');
-      if (title && company) {
-        jobListings.push({ title, company, link });
-      }
-    });
-
-    // Match logic (basic keyword matching)
-    const matchedJobs = jobListings.filter(job =>
-      cvText.toLowerCase().includes(job.title.toLowerCase())
-    );
-
-    // Save to MongoDB
-    const { db } = await connectToDatabase();
-    const collection = db.collection('matchedJobs');
-    await collection.insertMany(matchedJobs);
-
-    return res.status(200).json({ matchedJobs });
-  } catch (error) {
-    console.error('Error matching jobs:', error);
-    return res.status(500).json({ message: 'Internal Server Error' });
-  }
+  return { client, db };
 }

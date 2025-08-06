@@ -1,5 +1,7 @@
+// src/pages/api/match-jobs.ts
+
 import type { NextApiRequest, NextApiResponse } from 'next';
-import clientPromise from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/mongodb';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
@@ -17,11 +19,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const client = await clientPromise;
-    const db = client.db('QuickApplyAi');
-    const collection = db.collection('resumes');
+    const { db } = await connectToDatabase();
+    const resumeCollection = db.collection('resumes');
 
-    const latestResume = await collection.findOne({}, { sort: { uploadedAt: -1 } });
+    const latestResume = await resumeCollection.findOne({}, { sort: { uploadedAt: -1 } });
     if (!latestResume) {
       return res.status(404).json({ message: 'No resume found' });
     }
@@ -80,18 +81,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.warn('Remotive scraping failed:', err);
     }
 
-    // Score & Filter
+    // Match scoring
     const matched = scrapedJobs
       .map(job => {
         const text = `${job.title} ${job.description}`.toLowerCase();
-        const score = uniqueWords.reduce((sum, w) => sum + (text.includes(w) ? 1 : 0), 0);
+        const score = uniqueWords.reduce((sum, word) => sum + (text.includes(word) ? 1 : 0), 0);
         return { ...job, score };
       })
-      .filter(job => job.score >= 3)
-      .sort((a, b) => b.score - a.score)
+      .filter(job => job.score && job.score >= 3)
+      .sort((a, b) => b.score! - a.score!)
       .slice(0, 10);
 
-    // ✅ Insert into matchedJobs collection
+    // Save matched jobs to DB
     const matchedCollection = db.collection("matchedJobs");
     await matchedCollection.insertOne({
       resumeId: latestResume._id,
@@ -99,12 +100,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       jobs: matched,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       resumeTextPreview: resumeText.slice(0, 300),
       jobs: matched,
     });
   } catch (err) {
     console.error('Error in match-jobs:', err);
-    res.status(500).json({ message: 'Something went wrong' });
+    return res.status(500).json({ message: 'Internal Server Error' });
   }
 }
