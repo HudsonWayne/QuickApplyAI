@@ -22,11 +22,20 @@ export default function Home() {
             <p className="text-lg md:text-xl text-gray-700">
               Upload your resume once. We will find matching jobs and apply for you automatically.
             </p>
-            <Link href="/upload">
-              <button className="mt-4 px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow-md transition-all duration-300 ease-in-out">
-                🚀 Get Started
-              </button>
-            </Link>
+
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 mt-4">
+              <Link href="/upload">
+                <button className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow-md transition-all duration-300 ease-in-out">
+                  🚀 Get Started
+                </button>
+              </Link>
+              <Link href="/jobs">
+                <button className="px-8 py-3 bg-white border border-green-600 text-green-700 font-semibold rounded-xl shadow-md hover:bg-green-50 transition-all duration-300 ease-in-out">
+                  🔍 View Matched Jobs
+                </button>
+              </Link>
+            </div>
           </div>
 
           {/* Image */}
@@ -51,4 +60,3 @@ export default function Home() {
     </>
   );
 }
-
