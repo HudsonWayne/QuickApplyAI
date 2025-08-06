@@ -45,6 +45,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       scrapedJobs.push({ title, company, description, link });
     });
 
+    // Add this inside handler()
+
+// --- SCRAPE FROM RemoteOK ---
+const { data: remoteOKHtml } = await axios.get("https://remoteok.com/");
+const $$ = cheerio.load(remoteOKHtml);
+
+$$("tr.job").each((i, el) => {
+  const title = $$(el).find("h2").text().trim();
+  const company = $$(el).find(".companyLink h3").text().trim();
+  const description = $$(el).find(".description").text().trim();
+  const link = "https://remoteok.com" + $$(el).attr("data-href");
+
+  if (title && link) {
+    scrapedJobs.push({ title, company, description, link });
+  }
+});
+
+
+
+
+
+
     // Basic keyword match
     const matchedJobs = scrapedJobs.filter(job => {
       const text = (job.title + job.description).toLowerCase();
