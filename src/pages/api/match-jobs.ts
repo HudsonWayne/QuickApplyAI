@@ -2,6 +2,15 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import clientPromise from '@/lib/mongodb';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+
+type Job = {
+  title: string;
+  company: string;
+  description: string;
+  link: string;
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -13,40 +22,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const db = client.db('QuickApplyAi');
     const collection = db.collection('resumes');
 
-    // Get the most recent resume
+    // Get latest resume
     const latestResume = await collection.findOne({}, { sort: { uploadedAt: -1 } });
-
     if (!latestResume) {
       return res.status(404).json({ message: 'No resume found' });
     }
 
-    const resumeText = latestResume.textExtract;
+    const resumeText = latestResume.textExtract.toLowerCase();
+    const resumeWords = resumeText.split(/\W+/);
 
-    // (Temporary) Fake matched jobs using keywords from resume
-    const dummyJobs = [
-      {
-        title: "Frontend Developer",
-        company: "TechNova",
-        description: "Work with React, Next.js, and Tailwind on scalable UI.",
-      },
-      {
-        title: "Full Stack Engineer",
-        company: "InnoSoft",
-        description: "Looking for engineers familiar with MongoDB, Node.js.",
-      },
-      {
-        title: "Software Engineer Intern",
-        company: "Startup Labs",
-        description: "Great fit for recent graduates with JavaScript knowledge.",
-      },
-    ];
+    // Scrape VacancyMail
+    const { data: html } = await axios.get("https://vacancymail.co.zw/jobs/");
+    const $ = cheerio.load(html);
+    const scrapedJobs: Job[] = [];
 
-    return res.status(200).json({
+    $(".job-listing").each((i, el) => {
+      const title = $(el).find("h2").text().trim();
+      const company = $(el).find(".company-name").text().trim();
+      const description = $(el).find(".job-description").text().trim();
+      const link = "https://vacancymail.co.zw" + $(el).find("a").attr("href");
+
+      scrapedJobs.push({ title, company, description, link });
+    });
+
+    // Basic keyword match
+    const matchedJobs = scrapedJobs.filter(job => {
+      const text = (job.title + job.description).toLowerCase();
+      return resumeWords.some(word => text.includes(word));
+    });
+
+    res.status(200).json({
       resumeTextPreview: resumeText.slice(0, 300),
-      jobs: dummyJobs,
+      jobs: matchedJobs.slice(0, 10), // limit to 10
     });
   } catch (error) {
     console.error("Error in match-jobs:", error);
-    return res.status(500).json({ message: "Something went wrong" });
+    res.status(500).json({ message: "Something went wrong" });
   }
 }
