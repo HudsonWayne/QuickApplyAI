@@ -1,74 +1,61 @@
 // /pages/api/upload.ts
-import type { NextApiRequest, NextApiResponse } from "next";
-import formidable, { File } from "formidable";
-import fs from "fs/promises";
-import pdfParse from "pdf-parse";
-import path from "path";
-import { connectToDatabase } from "@/lib/mongodb";
 
-export const config = { api: { bodyParser: false } };
+import formidable from 'formidable';
+import fs from 'fs';
+import path from 'path';
+import pdfParse from 'pdf-parse';
+import { connectToDatabase } from '@/lib/mongodb';
 
-async function saveFile(file: File) {
-  const data = await fs.readFile(file.filepath);
-  const uploadDir = path.join(process.cwd(), "/public/uploads");
-  await fs.mkdir(uploadDir, { recursive: true });
-  const filePath = path.join(uploadDir, file.originalFilename || "uploaded.pdf");
-  await fs.writeFile(filePath, data);
-  return filePath;
-}
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
-async function fakeScrapeJobs(cvText: string) {
-  // Simulated job scraping logic based on keywords in CV
-  const matched = [];
-  if (cvText.includes("React")) {
-    matched.push({ title: "React Developer", company: "Tech Corp", location: "Remote", matchedAt: new Date() });
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method not allowed' });
   }
-  if (cvText.includes("Python")) {
-    matched.push({ title: "Python Developer", company: "CodeBase", location: "Remote", matchedAt: new Date() });
-  }
-  return matched;
-}
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ message: "Only POST allowed" });
-
-  const form = formidable({ multiples: false });
+  const form = new formidable.IncomingForm({
+    uploadDir: path.join(process.cwd(), 'public', 'uploads'),
+    keepExtensions: true,
+  });
 
   form.parse(req, async (err, fields, files) => {
-    if (err || !files.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+    if (err) {
+      console.error('Upload error', err);
+      return res.status(500).json({ message: 'Upload failed' });
     }
 
     try {
-      const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
-      const filePath = await saveFile(uploadedFile);
-      const dataBuffer = await fs.readFile(filePath);
-      const pdfData = await pdfParse(dataBuffer);
-      const extractedText = pdfData.text;
+      const file = files.file?.[0];
 
-      const { db } = await connectToDatabase();
-
-      // Store resume
-      await db.collection("resumes").insertOne({
-        uploadedAt: new Date(),
-        filename: uploadedFile.originalFilename,
-        text: extractedText,
-      });
-
-      // Fake scrape jobs
-      const matchedJobs = await fakeScrapeJobs(extractedText);
-      if (matchedJobs.length) {
-        await db.collection("matchedJobs").insertMany(matchedJobs);
+      if (!file) {
+        return res.status(400).json({ message: 'No file uploaded' });
       }
 
-      res.status(200).json({
-        message: "Resume uploaded successfully",
+      const filePath = file.filepath;
+      const buffer = fs.readFileSync(filePath);
+      const pdfData = await pdfParse(buffer);
+      const text = pdfData.text;
+
+      // Extract name: first line with 2+ words
+      const firstLine = text.split("\n").find(line => line.trim().split(" ").length >= 2);
+      const name = firstLine?.split(" ").slice(0, 2).join(" ") || "there";
+
+      const { db } = await connectToDatabase();
+      await db.collection("resumes").insertOne({
         filePath,
-        matchedCount: matchedJobs.length,
+        name,
+        text,
+        uploadedAt: new Date(),
       });
+
+      res.status(200).json({ message: 'CV uploaded', filePath, name });
     } catch (error) {
-      console.error("Upload error:", error);
-      res.status(500).json({ message: "Upload failed" });
+      console.error("Parsing or DB error", error);
+      res.status(500).json({ message: 'Internal server error' });
     }
   });
 }
