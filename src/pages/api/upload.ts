@@ -1,53 +1,48 @@
-// /src/pages/api/upload.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import formidable, { File } from 'formidable';
 import fs from 'fs';
-import path from 'path';
+import pdfParse from 'pdf-parse';
+import clientPromise from '@/lib/mongodb';
 
 export const config = {
   api: {
-    bodyParser: false, // Important: disable Next.js body parsing to let formidable handle it
+    bodyParser: false,
   },
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Only POST allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const uploadDir = path.join(process.cwd(), '/public/uploads');
+  const form = formidable({ multiples: false });
 
-  // Make sure upload folder exists
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
-  const form = formidable({
-    multiples: false,
-    uploadDir,
-    keepExtensions: true,
-    filename: (_name, _ext, part) => {
-      // Add timestamp prefix to original file name to avoid conflicts
-      return `${Date.now()}-${part.originalFilename}`;
-    },
-  });
-
-  form.parse(req, (err, _fields, files) => {
+  form.parse(req, async (err, fields, files) => {
     if (err) {
-      console.error('Upload Error:', err);
-      return res.status(500).json({ message: 'Failed to upload CV' });
+      console.error('Form parsing error:', err);
+      return res.status(500).json({ error: 'File upload failed' });
     }
 
-    // Support both single file object and array of files
-    const file: File | undefined = Array.isArray(files.file) ? files.file[0] : files.file;
-
-    if (!file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+    const cvFile = files.cv as File;
+    if (!cvFile || !cvFile.filepath) {
+      return res.status(400).json({ error: 'CV file is missing' });
     }
 
-    // Construct accessible URL path to the uploaded file
-    const filePath = `/uploads/${path.basename(file.filepath)}`;
+    try {
+      const dataBuffer = fs.readFileSync(cvFile.filepath);
+      const parsed = await pdfParse(dataBuffer);
+      const cvText = parsed.text;
 
-    return res.status(200).json({ message: 'CV uploaded successfully', filePath });
+      if (!cvText) {
+        return res.status(400).json({ error: 'CV text could not be parsed' });
+      }
+
+      const client = await clientPromise;
+      const db = client.db('quickapplyai');
+      const result = await db.collection('cvs').insertOne({ text: cvText });
+
+      return res.status(200).json({ message: 'CV uploaded and parsed', cvId: result.insertedId, cvText });
+    } catch (e) {
+      console.error('Parsing error:', e);
+      return res.status(500).json({ error: 'Failed to parse CV' });
+    }
   });
 }

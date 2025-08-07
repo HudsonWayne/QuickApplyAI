@@ -1,15 +1,19 @@
-// src/lib/mongodb.ts
 import { MongoClient } from "mongodb";
 
-const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017";
+const uri = process.env.MONGODB_URI!;
 const options = {};
 let client;
 let clientPromise;
 
-if (!global._mongoClientPromise) {
-  client = new MongoClient(uri, options);
-  global._mongoClientPromise = client.connect();
+if (!process.env.MONGODB_URI) {
+  throw new Error("Please add your Mongo URI to .env.local");
 }
-clientPromise = global._mongoClientPromise;
 
-export default clientPromise;
+client = new MongoClient(uri, options);
+clientPromise = client.connect();
+
+export async function connectToDatabase() {
+  const client = await clientPromise;
+  const db = client.db("quickapplyai");
+  return { db };
+}

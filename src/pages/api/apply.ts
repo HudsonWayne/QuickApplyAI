@@ -1,31 +1,24 @@
 // /pages/api/apply.ts
-import formidable from 'formidable';
-import fs from 'fs';
-import path from 'path';
+import type { NextApiRequest, NextApiResponse } from "next";
+import { connectToDatabase } from "@/lib/mongodb";
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") return res.status(405).json({ message: "Only POST allowed" });
 
-export default async function handler(req, res) {
-  const form = new formidable.IncomingForm({
-    uploadDir: path.join(process.cwd(), 'public', 'uploads'),
-    keepExtensions: true,
-  });
+  const { resumeId, job } = req.body;
+  if (!resumeId || !job) return res.status(400).json({ message: "Missing resumeId or job data" });
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      console.error('Upload error', err);
-      return res.status(500).json({ error: 'Upload failed' });
-    }
-
-    const file = files.cv[0]; // Assuming 'cv' is the field name
-    const filePath = file.filepath; // Path where file is saved
-    console.log('Saved CV at:', filePath);
-
-    // You can now save `filePath` or the filename to MongoDB
-    res.status(200).json({ message: 'CV uploaded', path: filePath });
-  });
+  try {
+    const { db } = await connectToDatabase();
+    await db.collection("applications").insertOne({
+      resumeId,
+      job,
+      appliedAt: new Date(),
+      status: "applied",
+    });
+    res.status(200).json({ message: "Applied successfully" });
+  } catch (error) {
+    console.error("Apply error:", error);
+    res.status(500).json({ message: "Failed to apply" });
+  }
 }
