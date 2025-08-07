@@ -1,59 +1,48 @@
-import formidable, { IncomingForm, File } from 'formidable';
+// pages/api/upload.ts
+import type { NextApiRequest, NextApiResponse } from 'next';
+import formidable, { File } from 'formidable';
 import fs from 'fs';
-import path from 'path';
 import pdfParse from 'pdf-parse';
-import { connectToDatabase } from '@/lib/mongodb';
 
+// Disable Next.js's default body parsing
 export const config = {
   api: {
     bodyParser: false,
   },
 };
 
-export default async function handler(req, res) {
+async function readPDF(filePath: string): Promise<string> {
+  const dataBuffer = fs.readFileSync(filePath);
+  const data = await pdfParse(dataBuffer);
+  return data.text;
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const form = new formidable.IncomingForm({
-    uploadDir: path.join(process.cwd(), 'public', 'uploads'),
-    keepExtensions: true,
-  });
+  const form = formidable({ uploadDir: './uploads', keepExtensions: true });
 
   form.parse(req, async (err, fields, files) => {
     if (err) {
-      console.error('Upload error:', err);
-      return res.status(500).json({ message: 'Upload failed' });
+      console.error('Form parse error:', err);
+      return res.status(500).json({ error: 'Form parsing failed' });
     }
 
+    const file = files.file as File;
+    const filePath = file.filepath;
+
     try {
-      const file = Array.isArray(files.file) ? files.file[0] : files.file;
-      if (!file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-      }
+      const text = await readPDF(filePath);
 
-      const filePath = file.filepath;
-      const buffer = fs.readFileSync(filePath);
-      const pdfData = await pdfParse(buffer);
-      const text = pdfData.text;
+      // Naive name extraction: get the first non-empty line
+      const nameLine = text.split('\n').find(line => line.trim().length > 0) || 'Unknown';
 
-      // Extract the first line with at least 2 words as a name
-      const firstLine = text.split('\n').find(line => line.trim().split(' ').length >= 2);
-      const name = firstLine?.trim().split(' ').slice(0, 2).join(' ') || 'there';
-
-      // OPTIONAL: Save to DB
-      const { db } = await connectToDatabase();
-      await db.collection('resumes').insertOne({
-        filePath,
-        name,
-        text,
-        uploadedAt: new Date(),
-      });
-
-      return res.status(200).json({ message: 'CV uploaded', filePath, name });
-    } catch (error) {
-      console.error('Processing error:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+      return res.status(200).json({ name: nameLine });
+    } catch (err) {
+      console.error('PDF parsing error:', err);
+      return res.status(500).json({ error: 'Failed to read PDF' });
     }
   });
 }
