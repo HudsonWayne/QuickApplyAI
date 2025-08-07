@@ -33,8 +33,8 @@ export default function UploadPage() {
         body: formData,
       });
 
-      const contentType = res.headers.get("content-type");
-      if (!contentType?.includes("application/json")) {
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
         throw new Error("Invalid response from server");
       }
 
