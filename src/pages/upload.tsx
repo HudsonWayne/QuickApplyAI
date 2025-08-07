@@ -36,7 +36,8 @@ export default function UploadPage() {
 
       if (res.ok) {
         setStatus("uploaded");
-        alert(`Upload successful! File path: ${data.filePath}`);
+        alert(`✅ Upload successful!\n📄 File saved!\n🔍 Matched ${data.matchedCount} jobs.`);
+
       } else {
         setStatus("idle");
         alert(`Upload failed: ${data.message || "Unknown error"}`);
