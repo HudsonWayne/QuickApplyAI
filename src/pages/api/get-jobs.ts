@@ -9,10 +9,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .collection("matchedJobs")
       .find({})
       .sort({ matchedAt: -1 })
-      .limit(10)
+      .limit(1)
       .toArray();
 
-    res.status(200).json(matched);
+    const jobs = matched.length > 0 ? matched[0].jobs || [] : [];
+
+    res.status(200).json({ jobs }); // ✅ send in expected format
   } catch (err) {
     console.error("Failed to fetch matched jobs:", err);
     res.status(500).json({ message: "Failed to fetch matched jobs" });
