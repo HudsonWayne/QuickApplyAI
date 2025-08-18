@@ -4,25 +4,39 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ message: "Only POST allowed" });
-
-  const { resumeId, job } = req.body;
-
-  if (!resumeId || !job) {
-    return res.status(400).json({ message: "Missing resumeId or job data" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Only POST allowed" });
   }
 
   try {
+    const { resumeId, job } = req.body;
+
+    if (!resumeId || !job) {
+      return res.status(400).json({ message: "Missing resumeId or job data" });
+    }
+
+    // Validate ObjectId
+    let resumeObjectId;
+    try {
+      resumeObjectId = new ObjectId(resumeId);
+    } catch (err) {
+      return res.status(400).json({ message: "Invalid resumeId format" });
+    }
+
     const { db } = await connectToDatabase();
-    await db.collection("applications").insertOne({
-      resumeId: new ObjectId(resumeId),
+
+    const result = await db.collection("applications").insertOne({
+      resumeId: resumeObjectId,
       job,
       appliedAt: new Date(),
       status: "applied",
     });
-    res.status(200).json({ message: "Applied successfully" });
+
+    console.log("Application inserted:", result.insertedId);
+
+    return res.status(200).json({ message: "Applied successfully", id: result.insertedId });
   } catch (error) {
     console.error("Apply error:", error);
-    res.status(500).json({ message: "Failed to apply" });
+    return res.status(500).json({ message: "Failed to apply", error: String(error) });
   }
 }
