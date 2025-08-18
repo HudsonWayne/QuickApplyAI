@@ -1,7 +1,6 @@
-// /pages/api/getApplications.ts
+// /pages/api/applications.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { connectToDatabase } from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -9,20 +8,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { resumeId } = req.query;
-
-    if (!resumeId) {
-      return res.status(400).json({ message: "Missing resumeId" });
-    }
-
     const { db } = await connectToDatabase();
-    const apps = await db.collection("applications").find({
-      resumeId: new ObjectId(resumeId as string),
-    }).toArray();
+    const apps = await db.collection("applications")
+      .find({})
+      .sort({ appliedAt: -1 })
+      .toArray();
 
     return res.status(200).json(apps);
   } catch (error) {
-    console.error("Get applications error:", error);
+    console.error("Failed to fetch applications:", error);
     return res.status(500).json({ message: "Failed to fetch applications" });
   }
 }

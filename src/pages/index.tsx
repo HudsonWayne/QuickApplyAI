@@ -6,17 +6,22 @@ import { useEffect, useState } from "react";
 
 export default function Home() {
   const [applications, setApplications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchApplications() {
       try {
-        const res = await fetch("/api/applications"); // new API endpoint
+        const res = await fetch("/api/applications");
         if (res.ok) {
           const data = await res.json();
           setApplications(data);
+        } else {
+          console.error("API error:", await res.text());
         }
       } catch (err) {
         console.error("Failed to fetch applications", err);
+      } finally {
+        setLoading(false);
       }
     }
     fetchApplications();
@@ -79,7 +84,9 @@ export default function Home() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
             📌 Your Applied Jobs
           </h2>
-          {applications.length === 0 ? (
+          {loading ? (
+            <p className="text-center text-gray-600">Loading your applications...</p>
+          ) : applications.length === 0 ? (
             <p className="text-center text-gray-600">
               You haven’t applied to any jobs yet.
             </p>
@@ -93,7 +100,9 @@ export default function Home() {
                   <h3 className="text-lg font-semibold text-green-700">
                     {app.job?.title || "Untitled Job"}
                   </h3>
-                  <p className="text-gray-600">{app.job?.company || "Unknown Company"}</p>
+                  <p className="text-gray-600">
+                    {app.job?.company || "Unknown Company"}
+                  </p>
                   <p className="text-sm text-gray-500">
                     Applied at: {new Date(app.appliedAt).toLocaleString()}
                   </p>
