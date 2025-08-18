@@ -2,31 +2,8 @@
 
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 export default function Home() {
-  const [applications, setApplications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchApplications() {
-      try {
-        const res = await fetch("/api/applications");
-        if (res.ok) {
-          const data = await res.json();
-          setApplications(data);
-        } else {
-          console.error("API error:", await res.text());
-        }
-      } catch (err) {
-        console.error("Failed to fetch applications", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchApplications();
-  }, []);
-
   return (
     <>
       <Head>
@@ -44,8 +21,7 @@ export default function Home() {
               Welcome to <span className="text-green-600">QuickApplyAi</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-700">
-              Upload your resume once. We will find matching jobs and apply for
-              you automatically.
+              Upload your resume once. We will find matching jobs and apply for you automatically.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
@@ -77,40 +53,6 @@ export default function Home() {
           <p>🎯 Smart Job Matching</p>
           <p>🔒 100% Privacy – Your data is secure</p>
           <p>📈 Save hours applying manually</p>
-        </div>
-
-        {/* Applied Jobs Section */}
-        <div className="mt-20 w-full max-w-4xl">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-            📌 Your Applied Jobs
-          </h2>
-          {loading ? (
-            <p className="text-center text-gray-600">Loading your applications...</p>
-          ) : applications.length === 0 ? (
-            <p className="text-center text-gray-600">
-              You haven’t applied to any jobs yet.
-            </p>
-          ) : (
-            <ul className="space-y-4">
-              {applications.map((app) => (
-                <li
-                  key={app._id}
-                  className="p-4 border border-gray-300 rounded-xl shadow-sm bg-white"
-                >
-                  <h3 className="text-lg font-semibold text-green-700">
-                    {app.job?.title || "Untitled Job"}
-                  </h3>
-                  <p className="text-gray-600">
-                    {app.job?.company || "Unknown Company"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Applied at: {new Date(app.appliedAt).toLocaleString()}
-                  </p>
-                  <p className="text-sm">Status: {app.status}</p>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       </main>
     </>
