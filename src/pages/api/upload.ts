@@ -16,50 +16,40 @@ async function saveFile(file: File) {
   return filePath;
 }
 
-// 🔹 Real ScrapingDog API function
-async function scrapeJobsWithScrapingDog(cvText: string) {
+async function scrapeJobs(cvText: string) {
   const apiKey = process.env.SCRAPINGDOG_API_KEY;
-  if (!apiKey) throw new Error("SCRAPINGDOG_API_KEY is not set in .env");
+  if (!apiKey) throw new Error("SCRAPINGDOG_API_KEY not set in .env");
 
-  // take first 2-3 lines of CV as query
   const query = encodeURIComponent(cvText.split("\n").slice(0, 3).join(" "));
-
   const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${query}`;
 
-  try {
-    const res = await fetch(url);
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("ScrapingDog failed:", text);
-      return [];
-    }
-
-    const data = await res.json();
-    // ScrapingDog returns jobs array (adjust mapping as needed)
-    return (data.jobs || []).map((job: any) => ({
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      link: job.link,
-      matchedAt: new Date(),
-    }));
-  } catch (err) {
-    console.error("ScrapingDog API error:", err);
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.error("ScrapingDog API error:", await res.text());
     return [];
   }
+
+  const data = await res.json();
+  return (data.jobs || []).map((job: any) => ({
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    link: job.link,
+    matchedAt: new Date(),
+  }));
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ message: "Only POST allowed" });
 
   const form = formidable({ multiples: false });
+
   form.parse(req, async (err, fields, files) => {
     if (err || !files.file) return res.status(400).json({ message: "No file uploaded" });
 
     try {
       const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
       const filePath = await saveFile(uploadedFile);
-
       const dataBuffer = await fs.readFile(filePath);
       const pdfData = await pdfParse(dataBuffer);
       const extractedText = pdfData.text;
@@ -73,19 +63,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         text: extractedText,
       });
 
-      // 🔹 Scrape real jobs using ScrapingDog
-      const matchedJobs = await scrapeJobsWithScrapingDog(extractedText);
+      // Scrape jobs
+      const matchedJobs = await scrapeJobs(extractedText);
 
       if (matchedJobs.length > 0) {
         await db.collection("matchedJobs").insertOne({
           filename: uploadedFile.originalFilename,
           matchedAt: new Date(),
-          jobs: matchedJobs,
+          matchedJobs,
         });
       }
 
       res.status(200).json({
-        message: "Resume uploaded and jobs matched via ScrapingDog",
+        message: "Resume uploaded and jobs matched",
         matchedCount: matchedJobs.length,
       });
     } catch (error) {

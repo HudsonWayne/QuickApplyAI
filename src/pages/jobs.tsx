@@ -33,7 +33,7 @@ export default function JobsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-green-50 p-10 font-[Georgia]">
       <header className="max-w-4xl mx-auto text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-green-800 drop-shadow-sm">🚀 Available Jobs</h1>
+        <h1 className="text-4xl md:text-5xl font-extrabold text-green-800">🚀 Available Jobs</h1>
         <p className="mt-3 text-green-700 text-lg md:text-xl">Hand-picked job listings matched just for you</p>
       </header>
 
