@@ -8,7 +8,6 @@ let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
 if (process.env.NODE_ENV === "development") {
-  // use global variable in dev to prevent multiple connections
   if (!(global as any)._mongoClientPromise) {
     client = new MongoClient(process.env.MONGODB_URI);
     (global as any)._mongoClientPromise = client.connect();
@@ -21,6 +20,6 @@ if (process.env.NODE_ENV === "development") {
 
 export async function connectToDatabase() {
   const client = await clientPromise;
-  const db = client.db(); // use default database from URI
+  const db = client.db();
   return { client, db };
 }
