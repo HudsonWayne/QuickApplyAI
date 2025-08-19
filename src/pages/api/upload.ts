@@ -16,25 +16,18 @@ async function saveFile(file: File) {
   return filePath;
 }
 
-async function realScrapeJobs(cvText: string) {
-  const apiKey = process.env.SCRAPINGDOG_API_KEY;
-  const query = encodeURIComponent(cvText.split("\n").slice(0, 3).join(" "));
-  const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${query}`;
+// Example scraping function (replace with real API later)
+async function scrapeJobs(cvText: string) {
+  const jobs = [];
 
-  const res = await fetch(url);
-  if (!res.ok) {
-    console.error("ScrapingDog failed:", await res.text());
-    return [];
+  if (cvText.includes("React")) {
+    jobs.push({ title: "React Developer", company: "Tech Corp", location: "Remote", link: "https://example.com", matchedAt: new Date() });
+  }
+  if (cvText.includes("Full-Stack")) {
+    jobs.push({ title: "Full-Stack Developer", company: "Web Solutions", location: "Harare", link: "https://example.com", matchedAt: new Date() });
   }
 
-  const data = await res.json();
-  return data.jobs?.map((job: any) => ({
-    title: job.title,
-    company: job.company,
-    location: job.location,
-    link: job.link,
-    matchedAt: new Date(),
-  })) || [];
+  return jobs;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -55,31 +48,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { db } = await connectToDatabase();
 
       // Store resume
-      const resumeInsert = await db.collection("resumes").insertOne({
+      await db.collection("resumes").insertOne({
         uploadedAt: new Date(),
         filename: uploadedFile.originalFilename,
         text: extractedText,
       });
 
       // Scrape jobs
-      const matchedJobs = await realScrapeJobs(extractedText);
-
-      if (matchedJobs.length) {
+      const matchedJobs = await scrapeJobs(extractedText);
+      if (matchedJobs.length > 0) {
         await db.collection("matchedJobs").insertOne({
-          resumeId: resumeInsert.insertedId,
           filename: uploadedFile.originalFilename,
           matchedAt: new Date(),
           jobs: matchedJobs,
         });
       }
 
-      res.status(200).json({
-        message: "Resume uploaded and jobs matched",
-        matchedCount: matchedJobs.length,
-      });
+      res.status(200).json({ message: "Resume uploaded and jobs matched", matchedCount: matchedJobs.length });
     } catch (error) {
       console.error("Upload error:", error);
-      res.status(500).json({ message: "Upload failed" });
+      res.status(500).json({ message: "Upload failed", error: String(error) });
     }
   });
 }
