@@ -17,27 +17,34 @@ async function saveFile(file: File) {
   return filePath;
 }
 
-async function fakeScrapeJobs(cvText: string) {
-  // Simulated job scraping logic based on keywords in CV
-  const matched = [];
-  if (cvText.includes("React")) {
-    matched.push({ title: "React Developer", company: "Tech Corp", location: "Remote", matchedAt: new Date() });
+async function realScrapeJobs(cvText: string) {
+  const apiKey = process.env.SCRAPINGDOG_API_KEY;
+  const query = encodeURIComponent(cvText.split("\n").slice(0,3).join(" "));
+  const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${query}`;
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.error("ScrapingDog failed:", await res.text());
+    return [];
   }
-  if (cvText.includes("Python")) {
-    matched.push({ title: "Python Developer", company: "CodeBase", location: "Remote", matchedAt: new Date() });
-  }
-  return matched;
+
+  const data = await res.json();
+  // Assume data.jobs is the array returned
+  return data.jobs.map((job: any) => ({
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    link: job.link,
+    matchedAt: new Date(),
+  }));
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ message: "Only POST allowed" });
 
   const form = formidable({ multiples: false });
-
   form.parse(req, async (err, fields, files) => {
-    if (err || !files.file) {
-      return res.status(400).json({ message: "No file uploaded" });
-    }
+    if (err || !files.file) return res.status(400).json({ message: "No file uploaded" });
 
     try {
       const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
@@ -47,23 +54,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const extractedText = pdfData.text;
 
       const { db } = await connectToDatabase();
-
-      // Store resume
       await db.collection("resumes").insertOne({
         uploadedAt: new Date(),
         filename: uploadedFile.originalFilename,
         text: extractedText,
       });
 
-      // Fake scrape jobs
-      const matchedJobs = await fakeScrapeJobs(extractedText);
+      const matchedJobs = await realScrapeJobs(extractedText);
       if (matchedJobs.length) {
-        await db.collection("matchedJobs").insertMany(matchedJobs);
+        await db.collection("matchedJobs").insertOne({
+          filename: uploadedFile.originalFilename,
+          matchedAt: new Date(),
+          jobs: matchedJobs,
+        });
       }
 
       res.status(200).json({
-        message: "Resume uploaded successfully",
-        filePath,
+        message: "Resume uploaded and jobs matched",
         matchedCount: matchedJobs.length,
       });
     } catch (error) {
