@@ -18,8 +18,6 @@ async function saveFile(file: File) {
 
 async function realScrapeJobs(cvText: string) {
   const apiKey = process.env.SCRAPINGDOG_API_KEY;
-  if (!apiKey) throw new Error("SCRAPINGDOG_API_KEY is missing in .env");
-
   const query = encodeURIComponent(cvText.split("\n").slice(0, 3).join(" "));
   const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${query}`;
 
@@ -30,15 +28,13 @@ async function realScrapeJobs(cvText: string) {
   }
 
   const data = await res.json();
-  if (!data.jobs) return [];
-
-  return data.jobs.map((job: any) => ({
+  return data.jobs?.map((job: any) => ({
     title: job.title,
     company: job.company,
     location: job.location,
     link: job.link,
     matchedAt: new Date(),
-  }));
+  })) || [];
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -51,23 +47,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
       const filePath = await saveFile(uploadedFile);
+
       const dataBuffer = await fs.readFile(filePath);
       const pdfData = await pdfParse(dataBuffer);
       const extractedText = pdfData.text;
 
       const { db } = await connectToDatabase();
 
-      const resumeDoc = await db.collection("resumes").insertOne({
+      // Store resume
+      const resumeInsert = await db.collection("resumes").insertOne({
         uploadedAt: new Date(),
         filename: uploadedFile.originalFilename,
         text: extractedText,
       });
 
+      // Scrape jobs
       const matchedJobs = await realScrapeJobs(extractedText);
 
       if (matchedJobs.length) {
         await db.collection("matchedJobs").insertOne({
-          resumeId: resumeDoc.insertedId,
+          resumeId: resumeInsert.insertedId,
           filename: uploadedFile.originalFilename,
           matchedAt: new Date(),
           jobs: matchedJobs,
@@ -75,13 +74,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       res.status(200).json({
-        message: "Resume uploaded and jobs matched successfully",
+        message: "Resume uploaded and jobs matched",
         matchedCount: matchedJobs.length,
-        resumeId: resumeDoc.insertedId,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Upload error:", error);
-      res.status(500).json({ message: "Upload failed", error: error.message });
+      res.status(500).json({ message: "Upload failed" });
     }
   });
 }
