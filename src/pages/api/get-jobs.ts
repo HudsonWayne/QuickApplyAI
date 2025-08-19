@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ jobs: [] });
     }
 
-    // flatten the jobs array
+    // flatten the jobs array correctly
     const jobs = matchedDocs.flatMap((doc) => doc.matchedJobs || []);
 
     res.status(200).json({ jobs });
