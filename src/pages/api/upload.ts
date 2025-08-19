@@ -45,7 +45,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") return res.status(405).json({ message: "Only POST allowed" });
 
   const form = formidable({ multiples: false });
-
   form.parse(req, async (err, fields, files) => {
     if (err || !files.file) return res.status(400).json({ message: "No file uploaded" });
 
@@ -58,14 +57,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { db } = await connectToDatabase();
 
-      // Store resume
       const resumeDoc = await db.collection("resumes").insertOne({
         uploadedAt: new Date(),
         filename: uploadedFile.originalFilename,
         text: extractedText,
       });
 
-      // Fetch real jobs via ScrapingDog
       const matchedJobs = await realScrapeJobs(extractedText);
 
       if (matchedJobs.length) {
