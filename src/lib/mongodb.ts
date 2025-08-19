@@ -1,24 +1,26 @@
 import { MongoClient } from "mongodb";
 
-const uri = process.env.MONGODB_URI;
-if (!uri) throw new Error("MONGODB_URI must be set in .env.local");
+if (!process.env.MONGODB_URI) {
+  throw new Error("Please define the MONGODB_URI environment variable");
+}
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
 if (process.env.NODE_ENV === "development") {
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri);
-    global._mongoClientPromise = client.connect();
+  // use global variable in dev to prevent multiple connections
+  if (!(global as any)._mongoClientPromise) {
+    client = new MongoClient(process.env.MONGODB_URI);
+    (global as any)._mongoClientPromise = client.connect();
   }
-  clientPromise = global._mongoClientPromise;
+  clientPromise = (global as any)._mongoClientPromise;
 } else {
-  client = new MongoClient(uri);
+  client = new MongoClient(process.env.MONGODB_URI);
   clientPromise = client.connect();
 }
 
 export async function connectToDatabase() {
   const client = await clientPromise;
-  const db = client.db(); // default DB from connection string
+  const db = client.db(); // use default database from URI
   return { client, db };
 }
