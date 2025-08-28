@@ -15,8 +15,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ jobs: [] });
     }
 
-    // IMPORTANT: Use 'matchedJobs' field
-    const jobs = matchedDocs.flatMap((doc) => doc.matchedJobs || []);
+    // ✅ Normalize both "matchedJobs" and "jobs"
+    const jobs = matchedDocs.flatMap((doc) => doc.matchedJobs || doc.jobs || []);
 
     res.status(200).json({ jobs });
   } catch (err: any) {
