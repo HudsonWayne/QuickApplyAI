@@ -65,7 +65,9 @@ export default function UploadPage() {
           <div className="bg-white shadow-xl rounded-2xl px-6 py-8 space-y-6">
             <label className="flex flex-col items-center border-2 border-dashed border-green-400 p-6 rounded-xl cursor-pointer hover:bg-green-50 transition">
               <FaUpload className="text-green-500 text-3xl mb-2" />
-              <span className="text-sm text-gray-600">Click to upload a PDF resume</span>
+              <span className="text-sm text-gray-600">
+                Click to upload a PDF resume
+              </span>
               <input
                 type="file"
                 accept=".pdf"
@@ -75,7 +77,9 @@ export default function UploadPage() {
             </label>
 
             {file && (
-              <p className="text-sm text-green-700 font-medium">📄 Selected: {file.name}</p>
+              <p className="text-sm text-green-700 font-medium">
+                📄 Selected: {file.name}
+              </p>
             )}
 
             <button
@@ -86,11 +90,13 @@ export default function UploadPage() {
             </button>
           </div>
 
+          {/* REALLY BEAUTIFUL BACK BUTTON */}
           <Link
             href="/"
-            className="flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-green-700 transition"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
           >
-            <FaArrowLeft /> Back to Home
+            <FaArrowLeft className="text-base" />
+            Back to Home
           </Link>
         </div>
 

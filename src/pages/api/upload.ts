@@ -11,9 +11,14 @@ async function saveFile(file: File) {
   const data = await fs.readFile(file.filepath);
   const uploadDir = path.join(process.cwd(), "/public/uploads");
   await fs.mkdir(uploadDir, { recursive: true });
-  const filePath = path.join(uploadDir, file.originalFilename || "uploaded.pdf");
+
+  const filename = file.originalFilename || "uploaded.pdf";
+  const filePath = path.join(uploadDir, filename);
+
   await fs.writeFile(filePath, data);
-  return filePath;
+
+  // Return relative path for frontend
+  return `/uploads/${filename}`;
 }
 
 async function scrapeJobs(cvText: string) {
@@ -40,17 +45,22 @@ async function scrapeJobs(cvText: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ message: "Only POST allowed" });
+  if (req.method !== "POST")
+    return res.status(405).json({ message: "Only POST allowed" });
 
   const form = formidable({ multiples: false });
 
   form.parse(req, async (err, fields, files) => {
-    if (err || !files.file) return res.status(400).json({ message: "No file uploaded" });
+    if (err || !files.file)
+      return res.status(400).json({ message: "No file uploaded" });
 
     try {
-      const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
+      const uploadedFile = Array.isArray(files.file)
+        ? files.file[0]
+        : files.file;
+
       const filePath = await saveFile(uploadedFile);
-      const dataBuffer = await fs.readFile(filePath);
+      const dataBuffer = await fs.readFile(path.join(process.cwd(), "public", filePath));
       const pdfData = await pdfParse(dataBuffer);
       const extractedText = pdfData.text;
 
@@ -76,6 +86,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       res.status(200).json({
         message: "Resume uploaded and jobs matched",
+        filePath, // ✅ now returning filePath
         matchedCount: matchedJobs.length,
       });
     } catch (error) {
