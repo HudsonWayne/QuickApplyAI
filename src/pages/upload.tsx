@@ -8,6 +8,7 @@ import { FaArrowLeft, FaUpload } from "react-icons/fa";
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<"idle" | "uploaded" | "searching">("idle");
+  const [matchedCount, setMatchedCount] = useState<number | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -36,14 +37,15 @@ export default function UploadPage() {
 
       if (res.ok) {
         setStatus("uploaded");
-        alert(`Upload successful! File path: ${data.filePath}`);
+        setMatchedCount(data.matchedCount || 0);
+        alert(`✅ Upload successful! Found ${data.matchedCount || 0} matching jobs.`);
       } else {
         setStatus("idle");
-        alert(`Upload failed: ${data.message || "Unknown error"}`);
+        alert(`❌ Upload failed: ${data.message || "Unknown error"}`);
       }
     } catch (error) {
       setStatus("idle");
-      alert(`Upload failed: ${error}`);
+      alert(`❌ Upload failed: ${error}`);
     }
   };
 
@@ -90,7 +92,7 @@ export default function UploadPage() {
             </button>
           </div>
 
-          {/* REALLY BEAUTIFUL BACK BUTTON */}
+          {/* BEAUTIFUL BACK BUTTON */}
           <Link
             href="/"
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
@@ -109,7 +111,8 @@ export default function UploadPage() {
                 : "Uploading and searching for jobs..."
             }
           >
-            {status === "uploaded" && "✅ Resume uploaded!"}
+            {status === "uploaded" &&
+              `✅ Resume uploaded! (${matchedCount || 0} jobs found)`}
             {status === "searching" && "🔄 Uploading and searching..."}
           </div>
         )}
