@@ -34,6 +34,7 @@ export default function JobsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-green-50 p-6 sm:p-10 font-[Georgia]">
+      {/* HEADER */}
       <header className="max-w-4xl mx-auto text-center mb-8 sm:mb-12">
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-green-800">
           🚀 Available Jobs
@@ -54,18 +55,26 @@ export default function JobsPage() {
         </div>
       </header>
 
+      {/* LOADING STATE */}
       {loading && (
         <p className="text-center text-green-600 text-lg animate-pulse">
           Loading jobs...
         </p>
       )}
-      {error && <p className="text-center text-red-600 font-semibold">{error}</p>}
+
+      {/* ERROR STATE */}
+      {error && (
+        <p className="text-center text-red-600 font-semibold">{error}</p>
+      )}
+
+      {/* EMPTY STATE */}
       {!loading && !error && jobs.length === 0 && (
         <p className="text-center text-gray-500">
           No jobs found at the moment.
         </p>
       )}
 
+      {/* JOB LIST */}
       <ul className="max-w-4xl mx-auto grid gap-8 sm:grid-cols-2">
         {jobs.map((job, index) => (
           <li
