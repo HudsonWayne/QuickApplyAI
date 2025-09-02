@@ -1,4 +1,4 @@
-// /pages/api/getMatchedJobs.ts
+// /pages/api/match-jobs.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type Job = {
@@ -8,7 +8,7 @@ type Job = {
   link: string;
 };
 
-// simple in-memory store (replace with DB later)
+// in-memory store for last uploaded resume
 let lastUpload: { name: string; skills: string[] } = { name: "User", skills: [] };
 
 export function setLastUpload(name: string, skills: string[]) {
@@ -24,15 +24,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const apiKey = process.env.SCRAPINGDOG_API_KEY;
     if (!apiKey) throw new Error("Missing SCRAPINGDOG_API_KEY");
 
-    // build query from skills (fallback to generic search)
-    const query =
-      lastUpload.skills.length > 0
-        ? lastUpload.skills.slice(0, 3).join(" ")
-        : "software developer";
+    // build search query from skills, fallback to generic
+    const query = lastUpload.skills.length > 0
+      ? lastUpload.skills.slice(0, 3).join(" ")
+      : "software developer";
 
-    const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${encodeURIComponent(
-      query
-    )}`;
+    const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${encodeURIComponent(query)}`;
 
     const response = await fetch(url);
     if (!response.ok) {
