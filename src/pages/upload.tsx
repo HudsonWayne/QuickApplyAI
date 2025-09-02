@@ -9,6 +9,7 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<"idle" | "uploaded" | "searching">("idle");
   const [matchedCount, setMatchedCount] = useState<number | null>(null);
+  const [greeting, setGreeting] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -38,7 +39,7 @@ export default function UploadPage() {
       if (res.ok) {
         setStatus("uploaded");
         setMatchedCount(data.matchedCount || 0);
-        alert(`✅ Upload successful! Found ${data.matchedCount || 0} matching jobs.`);
+        setGreeting(data.message);
       } else {
         setStatus("idle");
         alert(`❌ Upload failed: ${data.message || "Unknown error"}`);
@@ -65,6 +66,7 @@ export default function UploadPage() {
           </p>
 
           <div className="bg-white shadow-xl rounded-2xl px-6 py-8 space-y-6">
+            {/* File input */}
             <label className="flex flex-col items-center border-2 border-dashed border-green-400 p-6 rounded-xl cursor-pointer hover:bg-green-50 transition">
               <FaUpload className="text-green-500 text-3xl mb-2" />
               <span className="text-sm text-gray-600">
@@ -92,7 +94,7 @@ export default function UploadPage() {
             </button>
           </div>
 
-          {/* BEAUTIFUL BACK BUTTON */}
+          {/* Back button */}
           <Link
             href="/"
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
@@ -102,6 +104,7 @@ export default function UploadPage() {
           </Link>
         </div>
 
+        {/* Status toast */}
         {status !== "idle" && (
           <div
             className="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-4 rounded-xl shadow-lg transition-all duration-500"
@@ -112,7 +115,7 @@ export default function UploadPage() {
             }
           >
             {status === "uploaded" &&
-              `✅ Resume uploaded! (${matchedCount || 0} jobs found)`}
+              `${greeting} (${matchedCount || 0} jobs found)`}
             {status === "searching" && "🔄 Uploading and searching..."}
           </div>
         )}
