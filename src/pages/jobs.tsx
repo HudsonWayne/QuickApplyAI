@@ -15,15 +15,19 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState<string>("User");
+  const [skills, setSkills] = useState<string[]>([]);
 
   useEffect(() => {
     async function fetchJobs() {
       try {
-        // ✅ use correct endpoint
         const res = await fetch("/api/getMatchedJobs");
         if (!res.ok) throw new Error(`Failed to fetch jobs: ${res.status}`);
         const data = await res.json();
+
         setJobs(data.jobs || []);
+        setName(data.name || "User");
+        setSkills(data.skills || []);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -43,6 +47,21 @@ export default function JobsPage() {
         <p className="mt-3 text-green-700 text-base sm:text-lg md:text-xl">
           Hand-picked job listings matched just for you
         </p>
+
+        {/* Personalized Greeting */}
+        <div className="mt-6 bg-white border border-green-200 shadow-md rounded-xl p-5 max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl font-semibold text-green-900">
+            Hi <span className="text-green-700">{name}</span> 👋
+          </p>
+          {skills.length > 0 && (
+            <p className="text-sm text-gray-600 mt-2">
+              We matched jobs based on your skills:{" "}
+              <span className="font-medium text-green-700">
+                {skills.join(", ")}
+              </span>
+            </p>
+          )}
+        </div>
 
         {/* BACK BUTTON */}
         <div className="mt-6">
