@@ -14,7 +14,7 @@ export const config = {
 const parseForm = (req: NextApiRequest) =>
   new Promise<{ fields: formidable.Fields; files: formidable.Files }>(
     (resolve, reject) => {
-      const form = formidable({ multiples: false });
+      const form = formidable({ multiples: false, keepExtensions: true });
       form.parse(req, (err, fields, files) => {
         if (err) reject(err);
         else resolve({ fields, files });
@@ -29,7 +29,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { files } = await parseForm(req);
-    const file = files.file as File;
+
+    // handle both array and single file cases
+    let file: File | undefined;
+    if (Array.isArray(files.file)) {
+      file = files.file[0];
+    } else {
+      file = files.file as File;
+    }
 
     if (!file || !file.filepath) {
       return res.status(400).json({ message: "No file uploaded" });
@@ -47,11 +54,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // heuristic: skip generic headings like "Resume" or "Curriculum Vitae"
     let extractedName = "User";
     if (lines.length > 0) {
-      extractedName = lines.find(
-        (line) =>
-          line.length > 2 &&
-          !/^(resume|curriculum vitae|cv)$/i.test(line)
-      ) || "User";
+      extractedName =
+        lines.find(
+          (line) =>
+            line.length > 2 &&
+            !/^(resume|curriculum vitae|cv)$/i.test(line)
+        ) || "User";
     }
 
     // mock job matches
