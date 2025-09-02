@@ -1,16 +1,16 @@
-// Next.js API Route - Upload Resume and Extract Name
+// /pages/api/upload.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import formidable, { File } from "formidable";
 import fs from "fs/promises";
 import pdf from "pdf-parse";
+import { connectToDatabase } from "@/lib/mongodb";
 
 export const config = {
   api: {
-    bodyParser: false, // disable default body parser for file uploads
+    bodyParser: false,
   },
 };
 
-// helper to parse form with formidable and return a Promise
 const parseForm = (req: NextApiRequest) =>
   new Promise<{ fields: formidable.Fields; files: formidable.Files }>(
     (resolve, reject) => {
@@ -30,7 +30,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { files } = await parseForm(req);
 
-    // handle both array and single file cases
     let file: File | undefined;
     if (Array.isArray(files.file)) {
       file = files.file[0];
@@ -42,16 +41,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // ✅ read file as buffer
+    // read + parse PDF
     const fileBuffer = await fs.readFile(file.filepath);
-
-    // parse PDF
     const pdfData = await pdf(fileBuffer);
-
     const text = pdfData.text || "";
     const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
 
-    // heuristic: skip generic headings like "Resume" or "Curriculum Vitae"
+    // extract name
     let extractedName = "User";
     if (lines.length > 0) {
       extractedName =
@@ -62,15 +58,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ) || "User";
     }
 
-    // mock job matches
-    const matchedCount = Math.floor(Math.random() * 10);
+    // extract skills
+    const skillsRegex =
+      /\b(Java|Python|React|Node|TypeScript|AWS|SQL|C\+\+|Machine Learning|Data Science|Developer|Engineer)\b/gi;
+    const matches = text.match(skillsRegex);
+    const skills = matches ? [...new Set(matches.map((m) => m.trim()))] : [];
+
+    // fetch jobs from ScrapingDog
+    const apiKey = process.env.SCRAPINGDOG_API_KEY;
+    const query = skills.length > 0 ? skills.join(" ") : "software developer";
+    const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${encodeURIComponent(
+      query
+    )}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`ScrapingDog API failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const jobs =
+      (data.jobs || []).map((job: any) => ({
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        link: job.link,
+      })) || [];
+
+    // save to MongoDB
+    const { db } = await connectToDatabase();
+    await db.collection("matchedJobs").insertOne({
+      name: extractedName,
+      skills,
+      jobs,
+      uploadedAt: new Date(),
+    });
 
     return res.status(200).json({
       message: `Hi ${extractedName}, your resume was uploaded successfully! 🎉`,
-      matchedCount,
+      jobs,
     });
   } catch (error) {
-    console.error("PDF parsing error:", error);
-    return res.status(500).json({ message: "Error reading PDF" });
+    console.error("Upload error:", error);
+    return res.status(500).json({ message: "Error processing resume" });
   }
 }
