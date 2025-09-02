@@ -90,40 +90,75 @@
 
 
 
-// /pages/api/jobs.ts
+// /pages/api/upload.ts
 import type { NextApiRequest, NextApiResponse } from "next";
+import formidable, { File } from "formidable";
+import fs from "fs/promises";
+import pdf from "pdf-parse";
 
-type Job = {
-  title: string;
-  company: string;
-  location: string;
-  link: string;
+export const config = {
+  api: {
+    bodyParser: false,
+  },
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  try {
-    const apiKey = process.env.SCRAPINGDOG_API_KEY; // 🔑 put in .env
-    const query = "software developer"; // You can make this dynamic from CV later
-    const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${encodeURIComponent(query)}`;
+const parseForm = (req: NextApiRequest) =>
+  new Promise<{ fields: formidable.Fields; files: formidable.Files }>(
+    (resolve, reject) => {
+      const form = formidable({ multiples: false, keepExtensions: true });
+      form.parse(req, (err, fields, files) => {
+        if (err) reject(err);
+        else resolve({ fields, files });
+      });
+    }
+  );
 
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`ScrapingDog API failed: ${response.statusText}`);
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method not allowed" });
+  }
+
+  try {
+    const { files } = await parseForm(req);
+
+    let file: File | undefined;
+    if (Array.isArray(files.file)) {
+      file = files.file[0];
+    } else {
+      file = files.file as File;
     }
 
-    const data = await response.json();
+    if (!file || !file.filepath) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
 
-    // normalize
-    const jobs: Job[] = (data.jobs || []).map((job: any) => ({
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      link: job.link,
-    }));
+    const fileBuffer = await fs.readFile(file.filepath);
+    const pdfData = await pdf(fileBuffer);
 
-    return res.status(200).json({ jobs });
-  } catch (err: any) {
-    console.error("❌ Job fetch error:", err.message);
-    return res.status(500).json({ error: "Failed to fetch jobs" });
+    const text = pdfData.text || "";
+    const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+
+    let extractedName = "User";
+    if (lines.length > 0) {
+      extractedName =
+        lines.find(
+          (line) =>
+            line.length > 2 &&
+            !/^(resume|curriculum vitae|cv)$/i.test(line)
+        ) || "User";
+    }
+
+    // very naive keyword extraction (could be replaced with NLP/AI later)
+    const skillsRegex = /\b(Java|Python|React|Node|TypeScript|AWS|SQL|C\+\+|Machine Learning|Data Science|Developer|Engineer)\b/gi;
+    const matches = text.match(skillsRegex);
+    const skills = matches ? [...new Set(matches.map((m) => m.trim()))] : [];
+
+    return res.status(200).json({
+      message: `Hi ${extractedName}, your resume was uploaded successfully! 🎉`,
+      skills,
+    });
+  } catch (error) {
+    console.error("PDF parsing error:", error);
+    return res.status(500).json({ message: "Error reading PDF" });
   }
 }
