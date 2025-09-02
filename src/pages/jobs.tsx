@@ -19,7 +19,8 @@ export default function JobsPage() {
   useEffect(() => {
     async function fetchJobs() {
       try {
-        const res = await fetch("/api/get-jobs");
+        // ✅ use correct endpoint
+        const res = await fetch("/api/getMatchedJobs");
         if (!res.ok) throw new Error(`Failed to fetch jobs: ${res.status}`);
         const data = await res.json();
         setJobs(data.jobs || []);
@@ -70,7 +71,7 @@ export default function JobsPage() {
       {/* EMPTY STATE */}
       {!loading && !error && jobs.length === 0 && (
         <p className="text-center text-gray-500">
-          No jobs found at the moment.
+          No jobs found yet. Try uploading your resume first.
         </p>
       )}
 
