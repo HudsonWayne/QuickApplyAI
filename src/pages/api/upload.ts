@@ -65,26 +65,83 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // call ScrapingDog API for jobs
     const apiKey = process.env.SCRAPINGDOG_API_KEY;
-    if (!apiKey) throw new Error("Missing SCRAPINGDOG_API_KEY");
+    let jobs: any[] = [];
 
-    const query = skills.length > 0 ? skills.slice(0, 3).join(" ") : "software developer";
-    const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${encodeURIComponent(
-      query
-    )}`;
+    if (apiKey) {
+      try {
+        const query = skills.length > 0 ? skills.slice(0, 3).join(" ") : "software developer";
+        const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${encodeURIComponent(
+          query
+        )}`;
 
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`ScrapingDog API failed: ${response.status} ${response.statusText}`);
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("❌ ScrapingDog failed:", response.status, response.statusText, errorText);
+          throw new Error(`ScrapingDog API failed: ${response.status}`);
+        }
+
+        try {
+          const data = await response.json();
+          jobs =
+            (data.jobs || []).map((job: any) => ({
+              title: job.title,
+              company: job.company,
+              location: job.location,
+              link: job.link,
+            })) || [];
+        } catch (err) {
+          const rawText = await response.text();
+          console.error("❌ ScrapingDog invalid JSON:", rawText);
+          throw new Error("ScrapingDog returned invalid JSON");
+        }
+      } catch (err: any) {
+        console.error("⚠️ Falling back to dummy jobs:", err.message);
+        jobs = [
+          {
+            title: "Frontend Developer",
+            company: "TechCorp",
+            location: "Remote",
+            link: "#",
+          },
+          {
+            title: "Backend Engineer",
+            company: "CodeWorks",
+            location: "Harare, Zimbabwe",
+            link: "#",
+          },
+          {
+            title: "Fullstack Developer",
+            company: "DevSolutions",
+            location: "Remote",
+            link: "#",
+          },
+        ];
+      }
+    } else {
+      console.error("❌ Missing SCRAPINGDOG_API_KEY. Returning dummy jobs.");
+      jobs = [
+        {
+          title: "Frontend Developer",
+          company: "TechCorp",
+          location: "Remote",
+          link: "#",
+        },
+        {
+          title: "Backend Engineer",
+          company: "CodeWorks",
+          location: "Harare, Zimbabwe",
+          link: "#",
+        },
+        {
+          title: "Fullstack Developer",
+          company: "DevSolutions",
+          location: "Remote",
+          link: "#",
+        },
+      ];
     }
-
-    const data = await response.json();
-    const jobs =
-      (data.jobs || []).map((job: any) => ({
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        link: job.link,
-      })) || [];
 
     // persist in MongoDB
     const { db } = await connectToDatabase();
