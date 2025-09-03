@@ -1,166 +1,47 @@
-// /pages/api/upload.ts
-import type { NextApiRequest, NextApiResponse } from "next";
-import formidable, { File } from "formidable";
-import fs from "fs/promises";
-import pdf from "pdf-parse";
+import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
+import * as pdfParse from "pdf-parse";
 
-export const config = {
-  api: {
-    bodyParser: false, // Required for formidable
-  },
-};
+export const runtime = "nodejs"; // allow Node APIs like Buffer
 
-// helper to parse multipart form
-const parseForm = (req: NextApiRequest) =>
-  new Promise<{ fields: formidable.Fields; files: formidable.Files }>(
-    (resolve, reject) => {
-      const form = formidable({ multiples: false, keepExtensions: true });
-      form.parse(req, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve({ fields, files });
-      });
-    }
-  );
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
-  }
-
+export async function POST(req: Request) {
   try {
-    const { files } = await parseForm(req);
+    const formData = await req.formData();
+    const file = formData.get("file") as File;
 
-    // handle file input
-    let file: File | undefined = Array.isArray(files.file)
-      ? files.file[0]
-      : (files.file as File);
-
-    if (!file?.filepath) {
-      return res.status(400).json({ message: "No file uploaded" });
+    if (!file) {
+      return NextResponse.json({ message: "No file uploaded" }, { status: 400 });
     }
 
-    // read + parse PDF text
-    const fileBuffer = await fs.readFile(file.filepath);
-    const pdfData = await pdf(fileBuffer);
-    const text = pdfData.text || "";
-    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    // Convert File → Buffer
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
-    // extract candidate name (simple heuristic: first non-generic line)
-    let extractedName = "User";
-    if (lines.length > 0) {
-      extractedName =
-        lines.find(
-          (line) =>
-            line.length > 2 &&
-            !/^(resume|curriculum vitae|cv)$/i.test(line)
-        ) || "User";
-    }
+    // Parse PDF text
+    const data = await pdfParse(buffer);
+    const text = data.text;
 
-    // extract skills (basic regex, can expand later)
-    const skillsRegex =
-      /\b(Java|Python|React|Node|TypeScript|AWS|SQL|C\+\+|Machine Learning|Data Science|Developer|Engineer)\b/gi;
-    const matches = text.match(skillsRegex);
-    const skills = matches ? [...new Set(matches.map((m) => m.trim()))] : [];
+    // Extract basic skills (expand this list later)
+    const skills =
+      text.match(/\b(JavaScript|Python|React|Node|MongoDB|SQL|Java|C\+\+)\b/gi) || [];
 
-    // call ScrapingDog API for jobs
-    const apiKey = process.env.SCRAPINGDOG_API_KEY;
-    let jobs: any[] = [];
-
-    if (apiKey) {
-      try {
-        const query = skills.length > 0 ? skills.slice(0, 3).join(" ") : "software developer";
-        const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${encodeURIComponent(
-          query
-        )}`;
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("❌ ScrapingDog failed:", response.status, response.statusText, errorText);
-          throw new Error(`ScrapingDog API failed: ${response.status}`);
-        }
-
-        try {
-          const data = await response.json();
-          jobs =
-            (data.jobs || []).map((job: any) => ({
-              title: job.title,
-              company: job.company,
-              location: job.location,
-              link: job.link,
-            })) || [];
-        } catch (err) {
-          const rawText = await response.text();
-          console.error("❌ ScrapingDog invalid JSON:", rawText);
-          throw new Error("ScrapingDog returned invalid JSON");
-        }
-      } catch (err: any) {
-        console.error("⚠️ Falling back to dummy jobs:", err.message);
-        jobs = [
-          {
-            title: "Frontend Developer",
-            company: "TechCorp",
-            location: "Remote",
-            link: "#",
-          },
-          {
-            title: "Backend Engineer",
-            company: "CodeWorks",
-            location: "Harare, Zimbabwe",
-            link: "#",
-          },
-          {
-            title: "Fullstack Developer",
-            company: "DevSolutions",
-            location: "Remote",
-            link: "#",
-          },
-        ];
-      }
-    } else {
-      console.error("❌ Missing SCRAPINGDOG_API_KEY. Returning dummy jobs.");
-      jobs = [
-        {
-          title: "Frontend Developer",
-          company: "TechCorp",
-          location: "Remote",
-          link: "#",
-        },
-        {
-          title: "Backend Engineer",
-          company: "CodeWorks",
-          location: "Harare, Zimbabwe",
-          link: "#",
-        },
-        {
-          title: "Fullstack Developer",
-          company: "DevSolutions",
-          location: "Remote",
-          link: "#",
-        },
-      ];
-    }
-
-    // persist in MongoDB
+    // Save to MongoDB
     const { db } = await connectToDatabase();
-    await db.collection("matchedJobs").insertOne({
-      name: extractedName,
+    await db.collection("resumes").insertOne({
+      filename: file.name,
       skills,
-      jobs,
       uploadedAt: new Date(),
     });
 
-    // return response
-    return res.status(200).json({
-      message: `Hi ${extractedName}, your resume was uploaded successfully! 🎉`,
-      name: extractedName,
+    return NextResponse.json({
+      message: "Hi User 👋",
       skills,
-      jobs,
     });
   } catch (error: any) {
-    console.error("❌ Upload error:", error.message);
-    return res.status(500).json({ message: "Error processing resume" });
+    console.error("Upload API error:", error);
+    return NextResponse.json(
+      { message: "Server error", error: error.message },
+      { status: 500 }
+    );
   }
 }
