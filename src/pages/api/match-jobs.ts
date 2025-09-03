@@ -1,57 +1,28 @@
-// /pages/api/match-jobs.ts
+// /pages/api/saveMatchedJobs.ts
+import { connectToDatabase } from "@/lib/mongodb";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-type Job = {
-  title: string;
-  company: string;
-  location: string;
-  link: string;
-};
-
-// in-memory store for last uploaded resume
-let lastUpload: { name: string; skills: string[] } = { name: "User", skills: [] };
-
-export function setLastUpload(name: string, skills: string[]) {
-  lastUpload = { name, skills };
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "GET") {
+  if (req.method !== "POST") {
     return res.status(405).json({ message: "Method not allowed" });
   }
 
   try {
-    const apiKey = process.env.SCRAPINGDOG_API_KEY;
-    if (!apiKey) throw new Error("Missing SCRAPINGDOG_API_KEY");
+    const { db } = await connectToDatabase();
+    const { jobs } = req.body; // array of matched jobs
 
-    // build search query from skills, fallback to generic
-    const query = lastUpload.skills.length > 0
-      ? lastUpload.skills.slice(0, 3).join(" ")
-      : "software developer";
-
-    const url = `https://api.scrapingdog.com/google_jobs?api_key=${apiKey}&query=${encodeURIComponent(query)}`;
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`ScrapingDog API failed: ${response.statusText}`);
+    if (!jobs || jobs.length === 0) {
+      return res.status(400).json({ message: "No jobs provided" });
     }
 
-    const data = await response.json();
-
-    const jobs: Job[] = (data.jobs || []).map((job: any) => ({
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      link: job.link,
-    }));
-
-    return res.status(200).json({
-      name: lastUpload.name,
-      skills: lastUpload.skills,
+    await db.collection("matchedJobs").insertOne({
       jobs,
+      matchedAt: new Date(),
     });
+
+    res.status(200).json({ message: "Jobs saved successfully" });
   } catch (err: any) {
-    console.error("❌ getMatchedJobs error:", err.message);
-    return res.status(500).json({ error: "Failed to fetch matched jobs" });
+    console.error("🔥 Failed to save jobs:", err.message);
+    res.status(500).json({ message: "Failed to save jobs" });
   }
 }

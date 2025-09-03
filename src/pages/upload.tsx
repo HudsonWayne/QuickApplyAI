@@ -5,13 +5,6 @@ import Head from "next/head";
 import Link from "next/link";
 import { FaArrowLeft, FaUpload } from "react-icons/fa";
 
-type Job = {
-  title: string;
-  company: string;
-  location: string;
-  link: string;
-};
-
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<"idle" | "uploaded" | "searching">("idle");
@@ -36,37 +29,21 @@ export default function UploadPage() {
     formData.append("file", file);
 
     try {
-      // 1️⃣ Upload the resume and extract skills
-      const uploadRes = await fetch("/api/upload", {
+      const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
 
-      const uploadData = await uploadRes.json();
+      const data = await res.json();
 
-      if (!uploadRes.ok) {
+      if (res.ok) {
+        setStatus("uploaded");
+        setMatchedCount(data.matchedCount || 0);
+        setGreeting(data.message);
+      } else {
         setStatus("idle");
-        alert(`❌ Upload failed: ${uploadData.message || "Unknown error"}`);
-        return;
+        alert(`❌ Upload failed: ${data.message || "Unknown error"}`);
       }
-
-      const { skills, message: greetingMsg } = uploadData;
-      setGreeting(greetingMsg);
-
-      // 2️⃣ Fetch matched jobs based on extracted skills
-      const jobsRes = await fetch("/api/getMatchedJobs");
-      const jobsData = await jobsRes.json();
-
-      if (!jobsRes.ok) {
-        setStatus("idle");
-        alert(`❌ Failed to fetch matched jobs: ${jobsData.error || jobsRes.status}`);
-        return;
-      }
-
-      const matchedJobs: Job[] = jobsData.jobs || [];
-      setMatchedCount(matchedJobs.length);
-
-      setStatus("uploaded");
     } catch (error) {
       setStatus("idle");
       alert(`❌ Upload failed: ${error}`);
@@ -133,12 +110,12 @@ export default function UploadPage() {
             className="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-4 rounded-xl shadow-lg transition-all duration-500"
             title={
               status === "uploaded"
-                ? "Resume uploaded and jobs matched"
+                ? "Resume uploaded successfully"
                 : "Uploading and searching for jobs..."
             }
           >
             {status === "uploaded" &&
-              `${greeting} (${matchedCount || 0} jobs found)`}
+              `${greeting} (${matchedCount || 0} skills found)`}
             {status === "searching" && "🔄 Uploading and searching..."}
           </div>
         )}

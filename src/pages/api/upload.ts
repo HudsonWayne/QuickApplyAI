@@ -1,47 +1,39 @@
-import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
-import * as pdfParse from "pdf-parse";
+// Next.js API Route - Upload Resume
+import type { NextApiRequest, NextApiResponse } from "next";
+import formidable from "formidable";
+import fs from "fs";
 
-export const runtime = "nodejs"; // allow Node APIs like Buffer
+export const config = {
+  api: {
+    bodyParser: false, // disable default body parser for file uploads
+  },
+};
 
-export async function POST(req: Request) {
-  try {
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method not allowed" });
+  }
 
-    if (!file) {
-      return NextResponse.json({ message: "No file uploaded" }, { status: 400 });
+  const form = formidable({ multiples: false });
+
+  form.parse(req, (err, fields, files) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "File upload error" });
     }
 
-    // Convert File → Buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const file = files.file as formidable.File;
+    if (!file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
 
-    // Parse PDF text
-    const data = await pdfParse(buffer);
-    const text = data.text;
+    // Here’s where you could parse the PDF and match jobs
+    // For now, let’s mock the result
+    const matchedCount = Math.floor(Math.random() * 10); // random job matches
 
-    // Extract basic skills (expand this list later)
-    const skills =
-      text.match(/\b(JavaScript|Python|React|Node|MongoDB|SQL|Java|C\+\+)\b/gi) || [];
-
-    // Save to MongoDB
-    const { db } = await connectToDatabase();
-    await db.collection("resumes").insertOne({
-      filename: file.name,
-      skills,
-      uploadedAt: new Date(),
+    return res.status(200).json({
+      message: "Resume uploaded successfully",
+      matchedCount,
     });
-
-    return NextResponse.json({
-      message: "Hi User 👋",
-      skills,
-    });
-  } catch (error: any) {
-    console.error("Upload API error:", error);
-    return NextResponse.json(
-      { message: "Server error", error: error.message },
-      { status: 500 }
-    );
-  }
+  });
 }
