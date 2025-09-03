@@ -89,76 +89,40 @@
 // }
 
 
-
-// /pages/api/upload.ts
+// /pages/api/get-jobs.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import formidable, { File } from "formidable";
-import fs from "fs/promises";
-import pdf from "pdf-parse";
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-const parseForm = (req: NextApiRequest) =>
-  new Promise<{ fields: formidable.Fields; files: formidable.Files }>(
-    (resolve, reject) => {
-      const form = formidable({ multiples: false, keepExtensions: true });
-      form.parse(req, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve({ fields, files });
-      });
-    }
-  );
+import { connectToDatabase } from "@/lib/mongodb";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
+  if (req.method !== "GET") {
     return res.status(405).json({ message: "Method not allowed" });
   }
 
   try {
-    const { files } = await parseForm(req);
+    const { db } = await connectToDatabase();
 
-    let file: File | undefined;
-    if (Array.isArray(files.file)) {
-      file = files.file[0];
-    } else {
-      file = files.file as File;
+    // Get the most recent upload
+    const latest = await db
+      .collection("matchedJobs")
+      .find({})
+      .sort({ uploadedAt: -1 })
+      .limit(1)
+      .toArray();
+
+    if (!latest || latest.length === 0) {
+      return res.status(404).json({ message: "No jobs found" });
     }
 
-    if (!file || !file.filepath) {
-      return res.status(400).json({ message: "No file uploaded" });
-    }
-
-    const fileBuffer = await fs.readFile(file.filepath);
-    const pdfData = await pdf(fileBuffer);
-
-    const text = pdfData.text || "";
-    const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
-
-    let extractedName = "User";
-    if (lines.length > 0) {
-      extractedName =
-        lines.find(
-          (line) =>
-            line.length > 2 &&
-            !/^(resume|curriculum vitae|cv)$/i.test(line)
-        ) || "User";
-    }
-
-    // very naive keyword extraction (could be replaced with NLP/AI later)
-    const skillsRegex = /\b(Java|Python|React|Node|TypeScript|AWS|SQL|C\+\+|Machine Learning|Data Science|Developer|Engineer)\b/gi;
-    const matches = text.match(skillsRegex);
-    const skills = matches ? [...new Set(matches.map((m) => m.trim()))] : [];
+    const { name, skills, jobs, uploadedAt } = latest[0];
 
     return res.status(200).json({
-      message: `Hi ${extractedName}, your resume was uploaded successfully! 🎉`,
+      name,
       skills,
+      jobs,
+      uploadedAt,
     });
-  } catch (error) {
-    console.error("PDF parsing error:", error);
-    return res.status(500).json({ message: "Error reading PDF" });
+  } catch (error: any) {
+    console.error("❌ Get-jobs error:", error.message);
+    return res.status(500).json({ message: "Error fetching jobs" });
   }
 }
