@@ -88,10 +88,16 @@
 //   res.status(200).json({ jobs });
 // }
 
-
-// /pages/api/get-jobs.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { connectToDatabase } from "@/lib/mongodb";
+import fetch from "node-fetch"; // if using Node.js 18+, you can use global fetch
+
+interface Job {
+  title: string;
+  company: string;
+  location: string;
+  link: string;
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -110,16 +116,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .toArray();
 
     if (!latest || latest.length === 0) {
-      return res.status(404).json({ message: "No jobs found" });
+      return res.status(404).json({ message: "No recent uploads found" });
     }
 
-    const { name, skills, jobs, uploadedAt } = latest[0];
+    const { name, skills } = latest[0];
+
+    // Fetch jobs from remoteok.com using skills as query
+    const jobs: Job[] = [];
+
+    for (const skill of skills.slice(0, 3)) { // limit to top 3 skills for search
+      const url = `https://remoteok.com/remote-${encodeURIComponent(skill)}-jobs.json`;
+
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0", // some sites reject default fetch UA
+        },
+      });
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      if (!Array.isArray(data)) continue;
+
+      data.forEach((job: any) => {
+        if (job.position && job.company && job.url) {
+          jobs.push({
+            title: job.position,
+            company: job.company,
+            location: job.location || "Remote",
+            link: `https://remoteok.com${job.url}`,
+          });
+        }
+      });
+    }
+
+    // Save jobs back to MongoDB
+    await db.collection("matchedJobs").updateOne(
+      { _id: latest[0]._id },
+      { $set: { jobs, updatedAt: new Date() } }
+    );
 
     return res.status(200).json({
       name,
       skills,
       jobs,
-      uploadedAt,
     });
   } catch (error: any) {
     console.error("❌ Get-jobs error:", error.message);
