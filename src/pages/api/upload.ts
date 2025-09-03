@@ -1,7 +1,6 @@
 // Next.js API Route - Upload Resume
 import type { NextApiRequest, NextApiResponse } from "next";
 import formidable from "formidable";
-import fs from "fs";
 
 export const config = {
   api: {
@@ -27,12 +26,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // Here’s where you could parse the PDF and match jobs
-    // For now, let’s mock the result
-    const matchedCount = Math.floor(Math.random() * 10); // random job matches
+    // 📝 Extract candidate's name from filename
+    const originalName = file.originalFilename || "Candidate";
+    const extractedName = originalName.replace(/\.[^/.]+$/, ""); // remove extension
+
+    // 🔍 Mock matched skills count (replace with actual parsing logic later)
+    const matchedCount = Math.floor(Math.random() * 10) + 1;
 
     return res.status(200).json({
-      message: "Resume uploaded successfully",
+      message: `Hi ${extractedName} 👋, your resume was uploaded successfully!`,
+      name: extractedName,
       matchedCount,
     });
   });
