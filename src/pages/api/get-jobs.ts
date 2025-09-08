@@ -88,6 +88,9 @@
 //   res.status(200).json({ jobs });
 // }
 
+
+
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { connectToDatabase } from "@/lib/mongodb";
 import fetch from "node-fetch"; // if using Node.js 18+, you can use global fetch
