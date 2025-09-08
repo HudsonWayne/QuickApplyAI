@@ -13,8 +13,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    // Configure formidable
     const form = formidable({ multiples: false, keepExtensions: true });
 
+    // Parse form
     const { files } = await new Promise<{ files: formidable.Files }>((resolve, reject) => {
       form.parse(req, (err, fields, files) => {
         if (err) reject(err);
@@ -24,9 +26,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Handle formidable's array vs object
     let file: File | undefined;
-
     if (Array.isArray(files.file)) {
-      file = files.file[0]; // first file if array
+      file = files.file[0];
     } else {
       file = files.file as File;
     }
@@ -45,24 +46,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const pdfData = await pdf(buffer);
     const text = pdfData.text || "";
 
-    // Extract candidate name
+    // Extract candidate name (first meaningful line)
     const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
     const candidateName =
       lines.find((line) => line.length > 2 && !/^(resume|cv|curriculum vitae)$/i.test(line)) ||
       "Candidate";
 
-    // Extract skills
-    const skillsRegex =
-      /\b(Java|Python|React|Node|TypeScript|AWS|SQL|C\+\+|Machine Learning|Data Science|Developer|Engineer)\b/gi;
-    const matches = text.match(skillsRegex);
-    const skills = matches ? [...new Set(matches.map((m) => m.trim()))] : [];
+    // --- Extract skills ---
+    let skills: string[] = [];
 
-    // Save to MongoDB
+    // Try to detect "Skills" section in CV
+    const skillsSectionRegex = /skills[:\s\n]+([\s\S]*?)(?:experience|education|projects|certifications|$)/i;
+    const sectionMatch = text.match(skillsSectionRegex);
+
+    if (sectionMatch) {
+      // Extract the block under "Skills"
+      const rawSkills = sectionMatch[1]
+        .split(/[\n,•\-]/) // split by line breaks, commas, bullets, dashes
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      skills = [...new Set(rawSkills)];
+    } else {
+      // Fallback: regex-based detection
+      const skillsRegex =
+        /\b(Java(script)?|Python|React(\.js)?|Node(\.js)?|TypeScript|AWS|SQL|PostgreSQL|MongoDB|C\+\+|C#|Machine Learning|Data Science|AI|Django|Flask|Next\.js|Express|HTML|CSS|Developer|Engineer|Cloud|API|Git|Linux)\b/gi;
+
+      const matches = text.match(skillsRegex);
+      skills = matches ? [...new Set(matches.map((m) => m.trim()))] : [];
+    }
+
+    // Save to MongoDB (including raw CV text for debugging)
     const { db } = await connectToDatabase();
     const result = await db.collection("matchedJobs").insertOne({
       candidateName,
       skills,
-      matchedAt: new Date(),
+      rawText: text, // ✅ keep raw CV text for future re-processing
+      uploadedAt: new Date(),
     });
 
     return res.status(200).json({
