@@ -90,10 +90,9 @@
 
 
 
-
+// /pages/api/getMatchedJobs.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { connectToDatabase } from "@/lib/mongodb";
-import fetch from "node-fetch"; // if using Node.js 18+, you can use global fetch
 
 interface Job {
   title: string;
@@ -110,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { db } = await connectToDatabase();
 
-    // Get the most recent upload
+    // Get the most recent resume upload
     const latest = await db
       .collection("matchedJobs")
       .find({})
@@ -122,36 +121,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: "No recent uploads found" });
     }
 
-    const { name, skills } = latest[0];
+    const { candidateName, skills } = latest[0];
 
-    // Fetch jobs from remoteok.com using skills as query
-    const jobs: Job[] = [];
-
-    for (const skill of skills.slice(0, 3)) { // limit to top 3 skills for search
-      const url = `https://remoteok.com/remote-${encodeURIComponent(skill)}-jobs.json`;
-
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0", // some sites reject default fetch UA
-        },
-      });
-
-      if (!response.ok) continue;
-
-      const data = await response.json();
-      if (!Array.isArray(data)) continue;
-
-      data.forEach((job: any) => {
-        if (job.position && job.company && job.url) {
-          jobs.push({
-            title: job.position,
-            company: job.company,
-            location: job.location || "Remote",
-            link: `https://remoteok.com${job.url}`,
-          });
-        }
-      });
-    }
+    // Simulated jobs fetching (later you can integrate an API like RemoteOK)
+    const jobs: Job[] = [
+      {
+        title: "Frontend Developer",
+        company: "TechCorp",
+        location: "Remote",
+        link: "https://example.com/job/frontend",
+      },
+      {
+        title: "Backend Engineer",
+        company: "CodeWorks",
+        location: "Harare, Zimbabwe",
+        link: "https://example.com/job/backend",
+      },
+    ];
 
     // Save jobs back to MongoDB
     await db.collection("matchedJobs").updateOne(
@@ -160,7 +146,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
 
     return res.status(200).json({
-      name,
+      name: candidateName, // ✅ renamed correctly
       skills,
       jobs,
     });

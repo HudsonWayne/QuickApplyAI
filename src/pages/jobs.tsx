@@ -21,7 +21,7 @@ export default function JobsPage() {
   useEffect(() => {
     async function fetchJobs() {
       try {
-        const res = await fetch("/api/getMatchedJobs");
+        const res = await fetch("/api/get-jobs");
         if (!res.ok) throw new Error(`Failed to fetch jobs: ${res.status}`);
         const data = await res.json();
 
